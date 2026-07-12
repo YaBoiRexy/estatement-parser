@@ -12,12 +12,12 @@
     =============================================================================
     SPECIFICATIONS FOR FUTURE DEVELOPERS:
     =============================================================================
-    Project: Transaction History Presenter (Pixel Art Edition / 3-File System)
+    Project: Transaction History Presenter (Pixel Art Edition / Hybrid System)
     
-    1. INPUTS (Separate Files):
-       - File 1 (Keywords): "Keyword, Category"
-       - File 2 (Colors): "Category, Color"
-       - File 3 (Transactions): [Date], "[Name]", [Amount]
+    1. INPUTS:
+       - Auto-Fetched: 'keywords.csv' ("Keyword, Category") from the repo.
+       - Auto-Fetched: 'colors.csv' ("Category, Color") from the repo. (Optional)
+       - User Upload: Transactions CSV ([Date], "[Name]", [Amount])
 
     2. UI / PRESENTATION:
        - Font Pairing: 'Press Start 2P' for display/headers, 'Space Mono' for data reading.
@@ -198,24 +198,8 @@
         <div class="panel">
             <h1>SYS_INIT: DATA LOAD</h1>
             
-            <div class="form-group">
-                <div class="file-label-title">1. KEYWORDS CSV</div>
-                <div class="file-label-sub">Format: [Keyword], [Category Name]</div>
-                <label for="file-keywords" class="custom-file-btn">SELECT FILE</label>
-                <span id="name-keywords" class="file-name-display">NO_FILE.CSV</span>
-                <input type="file" id="file-keywords" accept=".csv,.txt" onchange="updateFileName('file-keywords', 'name-keywords')">
-            </div>
-
-            <div class="form-group">
-                <div class="file-label-title">2. COLORS CSV (Optional)</div>
-                <div class="file-label-sub">Format: [Category Name], [Hex Color]</div>
-                <label for="file-colors" class="custom-file-btn">SELECT FILE</label>
-                <span id="name-colors" class="file-name-display">NO_FILE.CSV</span>
-                <input type="file" id="file-colors" accept=".csv,.txt" onchange="updateFileName('file-colors', 'name-colors')">
-            </div>
-
             <div class="form-group" style="border-bottom: none;">
-                <div class="file-label-title">3. TRANSACTIONS CSV</div>
+                <div class="file-label-title">1. TRANSACTIONS CSV</div>
                 <div class="file-label-sub">Format: [Date], [Name], [Amount]</div>
                 <label for="file-transactions" class="custom-file-btn">SELECT FILE</label>
                 <span id="name-transactions" class="file-name-display">NO_FILE.CSV</span>
@@ -301,8 +285,6 @@
     }
 
     async function launchProgram() {
-        const keyFile = document.getElementById('file-keywords').files[0];
-        const colorFile = document.getElementById('file-colors').files[0];
         const transFile = document.getElementById('file-transactions').files[0];
         const output = document.getElementById('output-container');
         const sidebar = document.getElementById('sidebar-container');
@@ -312,10 +294,32 @@
         statsOutput.innerHTML = '';
 
         if (!transFile) { alert("SYS_ERROR: TRANSACTIONS CSV IS REQUIRED."); return; }
-        if (!keyFile) { alert("SYS_ERROR: KEYWORDS CSV IS REQUIRED."); return; }
 
-        const keyData = await readFileAsync(keyFile);
-        const colorData = await readFileAsync(colorFile);
+        let keyData = "";
+        let colorData = "";
+
+        // Fetch keywords.csv from the repo
+        try {
+            const keyResponse = await fetch('./keywords.csv');
+            if (!keyResponse.ok) throw new Error("Could not load keywords.csv from the server.");
+            keyData = await keyResponse.text();
+        } catch (error) {
+            alert("SYS_ERROR: " + error.message);
+            return;
+        }
+
+        // Fetch colors.csv from the repo (optional)
+        try {
+            const colorResponse = await fetch('./colors.csv');
+            if (colorResponse.ok) {
+                colorData = await colorResponse.text();
+            } else {
+                console.warn("colors.csv not found, proceeding with auto-generated colors.");
+            }
+        } catch (error) {
+            console.warn("Error fetching colors.csv, proceeding without it.", error);
+        }
+
         const transData = await readFileAsync(transFile);
 
         const assignedCategoryColors = {};
