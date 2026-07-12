@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>8-BIT TRANSACTION PRESENTER</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Import both Press Start 2P (Pixel) and Space Mono (Readable Data Font) -->
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+
+    <!-- 
+    =============================================================================
+    SPECIFICATIONS FOR FUTURE DEVELOPERS:
+    =============================================================================
+    Project: Transaction History Presenter (Pixel Art Edition / 3-File System)
+    
+    1. INPUTS (Separate Files):
+       - File 1 (Keywords): "Keyword, Category"
+       - File 2 (Colors): "Category, Color"
+       - File 3 (Transactions): [Date], "[Name]", [Amount]
+
+    2. UI / PRESENTATION:
+       - Font Pairing: 'Press Start 2P' for display/headers, 'Space Mono' for data reading.
+       - Custom File Uploaders: Styled proxy labels hide the default OS inputs.
+       - Theme: Red, retro terminal aesthetic.
+       - Transaction List: Rendered vertically inside white boxes with black borders.
+       - Multiple Matches: Diagonal CSS pixel stripes of all associated colors.
+       - Analytics Sidebar (Sticky): Pie Chart and Ranked Lists.
+    =============================================================================
+    -->
+
+    <style>
+        /* Base font is now the readable terminal font */
+        body {
+            font-family: 'Space Mono', monospace;
+            background-color: #3d0000;
+            color: #ffffff;
+            margin: 0;
+            padding: 20px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        /* Class to apply the heavy pixel font where needed */
+        .pixel-font, h1, h2, h3, .custom-file-btn, .launch-btn, .box-category, .cat-stat-total, .file-label-title {
+            font-family: 'Press Start 2P', monospace;
+            text-transform: uppercase;
+        }
+
+        .page-layout {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 25px;
+            max-width: 1400px;
+            margin: 0 auto;
+            align-items: start;
+        }
+
+        /* --- Pixel Art Panels --- */
+        .panel {
+            background-color: #b71c1c;
+            padding: 25px;
+            border: 4px solid #ff5252;
+            box-shadow: 8px 8px 0px #000000;
+            margin-bottom: 25px;
+            color: #fff;
+        }
+
+        h1, h2, h3 { 
+            margin-top: 0; color: #ffeb3b; text-shadow: 2px 2px 0px #000; 
+        }
+        h1 { font-size: 20px; border-bottom: 4px dashed #ff5252; padding-bottom: 15px; }
+        h2 { font-size: 16px; }
+        h3 { font-size: 14px; }
+
+        .form-group {
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #991616;
+        }
+        .form-group:last-child { border-bottom: none; }
+
+        .file-label-title { display: block; margin-bottom: 6px; font-size: 10px; color: #ffcdd2; }
+        .file-label-sub { display: block; margin-bottom: 12px; font-size: 12px; color: #ffcdd2; font-weight: 700; }
+        
+        /* --- Custom File Upload Button Styling --- */
+        .custom-file-btn {
+            display: inline-block;
+            background-color: #ffeb3b;
+            color: #000;
+            padding: 10px 15px;
+            border: 4px solid #000;
+            box-shadow: 4px 4px 0px #000;
+            cursor: pointer;
+            font-size: 10px;
+            transition: 0.1s;
+        }
+        .custom-file-btn:hover {
+            background-color: #fff176;
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0px #000;
+        }
+        .custom-file-btn:active {
+            transform: translate(4px, 4px);
+            box-shadow: 0px 0px 0px #000;
+        }
+        
+        .file-name-display {
+            display: inline-block;
+            font-size: 13px;
+            font-weight: 700;
+            color: #fff;
+            margin-left: 15px;
+            vertical-align: middle;
+            max-width: 250px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        input[type="file"] { display: none; }
+
+        /* Main Launch Button */
+        .launch-btn {
+            background-color: #4CAF50; color: white;
+            font-size: 14px; padding: 15px; border: 4px solid #000; box-shadow: 4px 4px 0px #000;
+            cursor: pointer; width: 100%; margin-top: 10px;
+        }
+        .launch-btn:hover { 
+            background-color: #45a049; transform: translate(2px, 2px); box-shadow: 2px 2px 0px #000;
+        }
+        .launch-btn:active { transform: translate(4px, 4px); box-shadow: 0px 0px 0px #000; }
+
+        /* --- Transaction List --- */
+        #output-container { display: flex; flex-direction: column; gap: 16px; }
+
+        .transaction-row {
+            display: flex; flex-wrap: wrap; gap: 12px; padding: 15px;
+            border: 4px solid #000; box-shadow: 6px 6px 0px #000; align-items: center;
+        }
+
+        .data-box {
+            background-color: #ffffff; color: #000000; padding: 10px;
+            border: 2px solid #000; box-shadow: 2px 2px 0px rgba(0,0,0,0.3); 
+            display: inline-block;
+        }
+        .box-date { min-width: 90px; text-align: center; font-weight: 700; }
+        .box-name { flex-grow: 1; font-weight: 700; }
+        .box-price { min-width: 80px; text-align: right; color: #b71c1c; font-weight: 700; font-size: 16px;}
+        
+        /* Forces the Category tag back into the pixel font */
+        .box-category { min-width: 140px; text-align: center; font-size: 9px; line-height: 1.8;}
+
+        /* --- Right Column (Sidebar Analytics) --- */
+        .sidebar { position: sticky; top: 20px; max-height: calc(100vh - 40px); overflow-y: auto; }
+        .sidebar::-webkit-scrollbar { width: 12px; }
+        .sidebar::-webkit-scrollbar-track { background: #3d0000; border: 2px solid #000; }
+        .sidebar::-webkit-scrollbar-thumb { background: #ff5252; border: 2px solid #000; }
+
+        .chart-container { margin-bottom: 30px; background: #fff; border: 4px solid #000; padding: 10px; }
+        
+        .cat-stat-card {
+            background-color: #ffebee; color: #000; border: 4px solid #000;
+            padding: 15px; margin-bottom: 20px; box-shadow: 4px 4px 0px #000;
+        }
+        .cat-stat-header {
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 4px solid #000; padding-bottom: 10px; margin-bottom: 15px;
+        }
+        .cat-stat-header h3 { margin: 0; font-size: 12px; color: #000; text-shadow: none; }
+        
+        /* Forces sidebar totals back into pixel font */
+        .cat-stat-total { font-size: 12px; color: #b71c1c; }
+        
+        .ranked-list { margin: 0; padding-left: 20px; color: #000; line-height: 1.6; }
+        .ranked-list li { margin-bottom: 12px; font-weight: 700; }
+        .expense-amt { color: #b71c1c; font-size: 15px; }
+        .expense-date { color: #555; font-size: 12px; font-weight: 400; }
+
+        details summary {
+            cursor: pointer; color: #000; font-size: 12px; font-weight: 700;
+            margin-top: 15px; padding: 8px; background: #ffeb3b; border: 2px solid #000;
+            user-select: none; text-align: center; transition: 0.1s;
+        }
+        details summary:hover { background: #fff176; transform: translate(1px, 1px); }
+
+        @media (max-width: 1000px) {
+            .page-layout { grid-template-columns: 1fr; }
+            .sidebar { position: static; max-height: none; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="page-layout">
+    <!-- LEFT COLUMN -->
+    <div class="main-content">
+        <div class="panel">
+            <h1>SYS_INIT: DATA LOAD</h1>
+            
+            <div class="form-group">
+                <div class="file-label-title">1. KEYWORDS CSV</div>
+                <div class="file-label-sub">Format: [Keyword], [Category Name]</div>
+                <label for="file-keywords" class="custom-file-btn">SELECT FILE</label>
+                <span id="name-keywords" class="file-name-display">NO_FILE.CSV</span>
+                <input type="file" id="file-keywords" accept=".csv,.txt" onchange="updateFileName('file-keywords', 'name-keywords')">
+            </div>
+
+            <div class="form-group">
+                <div class="file-label-title">2. COLORS CSV (Optional)</div>
+                <div class="file-label-sub">Format: [Category Name], [Hex Color]</div>
+                <label for="file-colors" class="custom-file-btn">SELECT FILE</label>
+                <span id="name-colors" class="file-name-display">NO_FILE.CSV</span>
+                <input type="file" id="file-colors" accept=".csv,.txt" onchange="updateFileName('file-colors', 'name-colors')">
+            </div>
+
+            <div class="form-group" style="border-bottom: none;">
+                <div class="file-label-title">3. TRANSACTIONS CSV</div>
+                <div class="file-label-sub">Format: [Date], [Name], [Amount]</div>
+                <label for="file-transactions" class="custom-file-btn">SELECT FILE</label>
+                <span id="name-transactions" class="file-name-display">NO_FILE.CSV</span>
+                <input type="file" id="file-transactions" accept=".csv,.txt" onchange="updateFileName('file-transactions', 'name-transactions')">
+            </div>
+
+            <button class="launch-btn" onclick="launchProgram()">EXECUTE_</button>
+        </div>
+
+        <div id="output-container"></div>
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div class="sidebar panel" id="sidebar-container" style="display: none;">
+        <h2>DATA_VISUAL</h2>
+        <div class="chart-container">
+            <canvas id="myPieChart"></canvas>
+        </div>
+        <h2>LEADERBOARD</h2>
+        <div id="stats-container"></div>
+    </div>
+</div>
+
+<script>
+    // Changed Chart.js font to Space Mono so numbers inside the pie chart are readable
+    Chart.defaults.font.family = "'Space Mono', monospace";
+    Chart.defaults.font.size = 12;
+    Chart.defaults.font.weight = 'bold';
+    Chart.defaults.color = '#000';
+
+    let currentChart = null;
+
+    function updateFileName(inputId, spanId) {
+        const input = document.getElementById(inputId);
+        const span = document.getElementById(spanId);
+        if (input.files && input.files.length > 0) {
+            span.textContent = input.files[0].name;
+            span.style.color = "#4CAF50"; 
+        } else {
+            span.textContent = "NO_FILE.CSV";
+            span.style.color = "#fff";
+        }
+    }
+
+    function stringToColor(str) {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+        let color = '#';
+        for (let i = 0; i < 3; i++) {
+            let value = (hash >> (i * 8)) & 0xFF;
+            let hex = Math.max(80, Math.min(220, value)).toString(16); 
+            color += ('00' + hex).substr(-2);
+        }
+        return color;
+    }
+
+    function formatMoney(amount) {
+        return "$" + amount.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
+    }
+
+    function parseCSVLine(line) {
+        const result = [];
+        let currentString = '';
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            if (char === '"') inQuotes = !inQuotes;
+            else if (char === ',' && !inQuotes) { result.push(currentString.trim()); currentString = ''; } 
+            else currentString += char;
+        }
+        result.push(currentString.trim());
+        return result;
+    }
+
+    function readFileAsync(file) {
+        return new Promise((resolve, reject) => {
+            if (!file) { resolve(""); return; }
+            const reader = new FileReader();
+            reader.onload = e => resolve(e.target.result);
+            reader.onerror = e => reject(e);
+            reader.readAsText(file);
+        });
+    }
+
+    async function launchProgram() {
+        const keyFile = document.getElementById('file-keywords').files[0];
+        const colorFile = document.getElementById('file-colors').files[0];
+        const transFile = document.getElementById('file-transactions').files[0];
+        const output = document.getElementById('output-container');
+        const sidebar = document.getElementById('sidebar-container');
+        const statsOutput = document.getElementById('stats-container');
+        
+        output.innerHTML = '';
+        statsOutput.innerHTML = '';
+
+        if (!transFile) { alert("SYS_ERROR: TRANSACTIONS CSV IS REQUIRED."); return; }
+        if (!keyFile) { alert("SYS_ERROR: KEYWORDS CSV IS REQUIRED."); return; }
+
+        const keyData = await readFileAsync(keyFile);
+        const colorData = await readFileAsync(colorFile);
+        const transData = await readFileAsync(transFile);
+
+        const assignedCategoryColors = {};
+        
+        if (colorData) {
+            const colorLines = colorData.split('\n');
+            for (let line of colorLines) {
+                if (!line.trim()) continue;
+                const cols = parseCSVLine(line);
+                if (cols.length >= 2) {
+                    const catName = cols[0].trim();
+                    const color = cols[1].trim();
+                    if (color) {
+                        if (assignedCategoryColors[catName] && assignedCategoryColors[catName] !== color) {
+                            alert(`CRITICAL ERROR: Category "${catName}" has conflicting colors ("${assignedCategoryColors[catName]}" vs "${color}"). FIX COLORS FILE TO PROCEED.`);
+                            return;
+                        }
+                        assignedCategoryColors[catName] = color;
+                    }
+                }
+            }
+        }
+
+        const categoryRules = [];
+        const keyLines = keyData.split('\n');
+        for (let line of keyLines) {
+            if (!line.trim()) continue;
+            const cols = parseCSVLine(line);
+            if (cols.length >= 2) {
+                const keyword = cols[0].trim();
+                const catName = cols[1].trim();
+                if (keyword && catName) {
+                    categoryRules.push({ keyword: keyword.toLowerCase(), name: catName });
+                }
+            }
+        }
+
+        for (let rule of categoryRules) {
+            if (assignedCategoryColors[rule.name]) {
+                rule.color = assignedCategoryColors[rule.name];
+            } else {
+                rule.color = stringToColor(rule.name);
+                assignedCategoryColors[rule.name] = rule.color; 
+            }
+        }
+
+        const transLines = transData.split('\n');
+        const stats = {};
+        
+        for (let line of transLines) {
+            if (!line.trim()) continue;
+            const cols = parseCSVLine(line);
+            if (cols.length < 3) continue; 
+            
+            const date = cols[0];
+            const name = cols[1];
+            const rawPrice = cols[2];
+            const priceNum = parseFloat(rawPrice.replace(/[^0-9.-]+/g,""));
+            if (isNaN(priceNum)) continue;
+
+            const nameLower = name.toLowerCase();
+            const matchedCategories = categoryRules.filter(rule => nameLower.includes(rule.keyword));
+
+            let rowStyle = "";
+            let categoryLabel = "";
+            let primaryColor = "";
+
+            if (matchedCategories.length === 0) {
+                rowStyle = "background-color: #ebf0f5;"; 
+                categoryLabel = "UNCATEGORIZED";
+                primaryColor = "#a0abb5";
+            } else if (matchedCategories.length === 1) {
+                rowStyle = `background-color: ${matchedCategories[0].color};`;
+                categoryLabel = matchedCategories[0].name;
+                primaryColor = matchedCategories[0].color;
+            } else {
+                const uniqueColors = [...new Set(matchedCategories.map(m => m.color))];
+                const uniqueNames = [...new Set(matchedCategories.map(m => m.name))];
+                categoryLabel = uniqueNames.join(' + ');
+                primaryColor = uniqueColors[0];
+
+                if (uniqueColors.length === 1) {
+                     rowStyle = `background-color: ${uniqueColors[0]};`;
+                } else {
+                    let gradientStops = [];
+                    let currentPos = 0;
+                    const stripeW = 15;
+                    for (let color of uniqueColors) {
+                        gradientStops.push(`${color} ${currentPos}px`, `${color} ${currentPos + stripeW}px`);
+                        currentPos += stripeW;
+                    }
+                    rowStyle = `background: repeating-linear-gradient(-45deg, ${gradientStops.join(', ')});`;
+                }
+            }
+
+            const rowDiv = document.createElement('div');
+            rowDiv.className = 'transaction-row';
+            rowDiv.style = rowStyle;
+            rowDiv.innerHTML = `
+                <span class="data-box box-date">${date}</span>
+                <span class="data-box box-name">${name}</span>
+                <span class="data-box box-price">${formatMoney(priceNum)}</span>
+                <span class="data-box box-category">${categoryLabel}</span>
+            `;
+            output.appendChild(rowDiv);
+
+            if (!stats[categoryLabel]) {
+                stats[categoryLabel] = { name: categoryLabel, total: 0, color: primaryColor, transactions: [] };
+            }
+            stats[categoryLabel].total += priceNum;
+            stats[categoryLabel].transactions.push({ name, date, amount: priceNum });
+        }
+
+        sidebar.style.display = 'block';
+        const sortedCats = Object.values(stats).sort((a, b) => b.total - a.total);
+        
+        const ctx = document.getElementById('myPieChart').getContext('2d');
+        if (currentChart) currentChart.destroy();
+        currentChart = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: sortedCats.map(c => `${c.name} (${formatMoney(c.total)})`),
+                datasets: [{
+                    data: sortedCats.map(c => c.total.toFixed(2)),
+                    backgroundColor: sortedCats.map(c => c.color),
+                    borderColor: '#000',
+                    borderWidth: 3,
+                    hoverOffset: 10
+                }]
+            },
+            options: { plugins: { legend: { position: 'bottom', labels: { boxWidth: 15, padding: 15 } } } }
+        });
+
+        for (let cat of sortedCats) {
+            cat.transactions.sort((a, b) => b.amount - a.amount);
+            const card = document.createElement('div');
+            card.className = 'cat-stat-card';
+            
+            let html = `
+                <div class="cat-stat-header">
+                    <h3 class="pixel-font">${cat.name}</h3>
+                    <span class="cat-stat-total">${formatMoney(cat.total)}</span>
+                </div>
+                <ol class="ranked-list">
+            `;
+
+            const limit = Math.min(3, cat.transactions.length);
+            for (let i = 0; i < limit; i++) {
+                const t = cat.transactions[i];
+                html += `<li><span class="expense-amt">${formatMoney(t.amount)}</span> <br> ${t.name} <br> <span class="expense-date">${t.date}</span></li>`;
+            }
+            html += `</ol>`;
+
+            if (cat.transactions.length > 3) {
+                const remaining = cat.transactions.length - 3;
+                html += `
+                    <details>
+                        <summary class="pixel-font">+ SHOW ${remaining} MORE</summary>
+                        <ol start="4" class="ranked-list" style="margin-top:10px;">
+                `;
+                for (let i = 3; i < cat.transactions.length; i++) {
+                    const t = cat.transactions[i];
+                    html += `<li><span class="expense-amt">${formatMoney(t.amount)}</span> <br> ${t.name} <br> <span class="expense-date">${t.date}</span></li>`;
+                }
+                html += `</ol></details>`;
+            }
+
+            card.innerHTML = html;
+            statsOutput.appendChild(card);
+        }
+    }
+</script>
+</body>
+</html>
